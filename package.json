@@ -4,9 +4,11 @@
   "description": "Artillery.io load testing engine for AMQP",
   "main": "index.js",
   "scripts": {
-    "test": "jest",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
     "lint": "eslint .",
-    "format": "prettier --write \"**/*.js\""
+    "format": "prettier --write \"**/*.js\"",
+    "prepublishOnly": "npm run lint && npm test"
   },
   "keywords": [
     "artillery",
@@ -17,6 +19,14 @@
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NoxFr/artillery-engine-amqp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NoxFr/artillery-engine-amqp/issues"
+  },
+  "homepage": "https://github.com/NoxFr/artillery-engine-amqp#readme",
   "peerDependencies": {
     "artillery": "^2.0.26"
   },

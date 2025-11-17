@@ -1,0 +1,32 @@
+# Test files
+test/
+coverage/
+*.test.js
+
+# Examples (optional, include them if you want users to see examples)
+# examples/
+
+# Config files
+.github/
+.eslintignore
+.prettierrc
+eslint.config.js
+jest.config.js
+
+# Git files
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Misc
+.DS_Store
+.env
+CONTRIBUTING.md
