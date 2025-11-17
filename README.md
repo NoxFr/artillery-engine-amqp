@@ -1,5 +1,9 @@
 # artillery-engine-amqp
 
+[![npm version](https://img.shields.io/npm/v/artillery-engine-amqp.svg)](https://www.npmjs.com/package/artillery-engine-amqp)
+[![npm downloads](https://img.shields.io/npm/dm/artillery-engine-amqp.svg)](https://www.npmjs.com/package/artillery-engine-amqp)
+[![license](https://img.shields.io/npm/l/artillery-engine-amqp.svg)](https://github.com/NoxFr/artillery-engine-amqp/blob/main/LICENSE)
+
 Load testing plugin for Artillery.io that adds support for AMQP (RabbitMQ, etc.).
 
 ## Installation
