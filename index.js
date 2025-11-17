@@ -107,9 +107,30 @@ class AMQPEngine {
 
   publishMessage(requestParams, context, ee, callback) {
     const startedAt = Date.now();
-    const exchange = requestParams.exchange || '';
-    const routingKey = requestParams.routingKey || requestParams.queue || '';
-    const data = requestParams.data || this.generateMessage(requestParams.size || 300);
+
+    // Template interpolation for dynamic values
+    const exchange = this.helpers.template(requestParams.exchange || '', context);
+    const routingKey = this.helpers.template(
+      requestParams.routingKey || requestParams.queue || '',
+      context
+    );
+    const queue = requestParams.queue ? this.helpers.template(requestParams.queue, context) : null;
+
+    // Process data with template variables
+    let data;
+    if (requestParams.data) {
+      if (typeof requestParams.data === 'string') {
+        data = this.helpers.template(requestParams.data, context);
+      } else {
+        // For objects, stringify then template, then parse back
+        const dataStr = JSON.stringify(requestParams.data);
+        const templatedStr = this.helpers.template(dataStr, context);
+        data = JSON.parse(templatedStr);
+      }
+    } else {
+      data = this.generateMessage(requestParams.size || 300);
+    }
+
     const options = requestParams.options || {};
     const batch = requestParams.batch || 1;
 
@@ -122,12 +143,12 @@ class AMQPEngine {
     }
 
     // Ensure queue exists if specified
-    if (requestParams.queue) {
-      operations.push(this.channel.assertQueue(requestParams.queue, { durable: true }));
+    if (queue) {
+      operations.push(this.channel.assertQueue(queue, { durable: true }));
 
       // Bind queue to exchange if both are specified
       if (exchange) {
-        operations.push(this.channel.bindQueue(requestParams.queue, exchange, routingKey));
+        operations.push(this.channel.bindQueue(queue, exchange, routingKey));
       }
     }
 
@@ -160,7 +181,9 @@ class AMQPEngine {
 
   subscribe(requestParams, context, ee, callback) {
     const startedAt = Date.now();
-    const queue = requestParams.queue;
+
+    // Template interpolation for queue name
+    const queue = requestParams.queue ? this.helpers.template(requestParams.queue, context) : null;
     const timeout = requestParams.timeout || 5000;
     const messageCount = requestParams.messageCount || 1;
 

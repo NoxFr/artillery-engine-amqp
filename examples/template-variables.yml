@@ -1,0 +1,50 @@
+config:
+  target: "amqp://localhost:5672"
+  phases:
+    - duration: 30
+      arrivalRate: 5
+  engines:
+    amqp:
+      url: "amqp://localhost:5672"
+
+scenarios:
+  - name: "Publish messages with template variables"
+    engine: amqp
+    flow:
+      # Publish with dynamic values
+      - publishMessage:
+          queue: "orders-{{ $randomNumber(1, 10) }}"
+          data:
+            orderId: "{{ $uuid }}"
+            timestamp: "{{ $timestamp }}"
+            amount: "{{ $randomNumber(10, 1000) }}"
+            currency: "EUR"
+            customerId: "user-{{ $randomNumber(1, 100) }}"
+            status: "pending"
+          options:
+            persistent: true
+            contentType: "application/json"
+
+      # Publish to exchange with dynamic routing key
+      - publishMessage:
+          exchange: "events"
+          exchangeType: "topic"
+          routingKey: "order.{{ $randomString(8) }}"
+          queue: "events-queue"
+          data:
+            eventType: "order.created"
+            eventId: "{{ $uuid }}"
+            timestamp: "{{ $timestamp }}"
+            metadata:
+              source: "load-test"
+              correlationId: "{{ $uuid }}"
+          options:
+            persistent: true
+            contentType: "application/json"
+
+# Available template variables:
+# {{ $uuid }} - Generate a random UUID v4
+# {{ $randomNumber(min, max) }} - Generate random number between min and max
+# {{ $randomString(length) }} - Generate random alphanumeric string
+# {{ $timestamp }} - Current Unix timestamp in milliseconds
+# And more from Artillery's built-in variables

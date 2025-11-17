@@ -94,6 +94,32 @@ scenarios:
 - `messageCount`: Number of messages to consume (default: 1)
 - `timeout`: Timeout in milliseconds (default: 5000)
 
+### Template Variables
+
+The engine supports Artillery's template variables for dynamic values:
+
+```yaml
+scenarios:
+  - name: "Dynamic messages"
+    engine: amqp
+    flow:
+      - publishMessage:
+          queue: "orders-{{ $randomNumber(1, 10) }}"
+          data:
+            orderId: "{{ $uuid }}"
+            timestamp: "{{ $timestamp }}"
+            amount: "{{ $randomNumber(10, 1000) }}"
+            customerId: "user-{{ $randomNumber(1, 100) }}"
+```
+
+**Available template variables:**
+- `{{ $uuid }}` - Generate a random UUID v4
+- `{{ $randomNumber(min, max) }}` - Generate random number between min and max
+- `{{ $randomString(length) }}` - Generate random alphanumeric string
+- `{{ $timestamp }}` - Current Unix timestamp in milliseconds
+
+See [examples/template-variables.yml](examples/template-variables.yml) for more examples.
+
 ## Run Tests
 
 ```bash

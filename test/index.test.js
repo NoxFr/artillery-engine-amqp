@@ -43,7 +43,14 @@ describe('AMQPEngine', () => {
       },
     };
 
-    engine = new AMQPEngine(mockScript, mockEE, {});
+    const mockHelpers = {
+      template: jest.fn((value, _context) => {
+        // Simple passthrough for tests, just return the value as-is
+        return value;
+      }),
+    };
+
+    engine = new AMQPEngine(mockScript, mockEE, mockHelpers);
   });
 
   afterEach(() => {
@@ -178,6 +185,37 @@ describe('AMQPEngine', () => {
         const publishCall = mockChannel.publish.mock.calls[0];
         const buffer = publishCall[2];
         expect(buffer.length).toBe(100);
+        done();
+      });
+    });
+
+    test('should interpolate template variables', (done) => {
+      const requestParams = {
+        queue: 'orders-{{ $randomNumber(1, 10) }}',
+        exchange: 'events-{{ $timestamp }}',
+        routingKey: 'test.{{ $uuid }}',
+        data: {
+          orderId: '{{ $uuid }}',
+          timestamp: '{{ $timestamp }}',
+        },
+      };
+
+      const context = { _uid: '123', vars: {} };
+
+      engine.publishMessage(requestParams, context, mockEE, (err) => {
+        expect(err).toBeNull();
+
+        // Verify template was called for each field
+        expect(engine.helpers.template).toHaveBeenCalledWith(requestParams.queue, context);
+        expect(engine.helpers.template).toHaveBeenCalledWith(requestParams.exchange, context);
+        expect(engine.helpers.template).toHaveBeenCalledWith(requestParams.routingKey, context);
+
+        // Verify data was processed
+        expect(engine.helpers.template).toHaveBeenCalledWith(
+          expect.stringContaining('orderId'),
+          context
+        );
+
         done();
       });
     });
