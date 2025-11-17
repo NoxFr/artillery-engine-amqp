@@ -1,4 +1,5 @@
 const amqp = require('amqplib');
+const A = require('async');
 const debug = require('debug')('engine:amqp');
 
 class AMQPEngine {
@@ -13,160 +14,199 @@ class AMQPEngine {
     return this;
   }
 
-  async createScenario(scenarioSpec, ee) {
+  createScenario(scenarioSpec, ee) {
     const self = this;
 
-    return async function scenario(context, callback) {
+    return function scenario(initialContext, callback) {
       ee.emit('started');
 
-      try {
-        // Connect to AMQP if not already connected
-        if (!self.connection) {
-          await self.connect();
-        }
+      const steps = [];
 
-        // Execute scenario steps
-        for (const step of scenarioSpec.flow) {
-          if (step.publishMessage) {
-            await self.publishMessage(step.publishMessage, context, ee);
-          } else if (step.subscribe) {
-            await self.subscribe(step.subscribe, context, ee);
+      // First step: pass context through
+      steps.push(function init(next) {
+        return next(null, initialContext);
+      });
+
+      // Add connection step if needed
+      steps.push(function ensureConnection(context, next) {
+        if (self.connection) {
+          return next(null, context);
+        }
+        self.connect((err) => {
+          if (err) {
+            return next(err, context);
           }
+          return next(null, context);
+        });
+      });
+
+      // Add scenario steps
+      scenarioSpec.flow.forEach((step) => {
+        if (step.publishMessage) {
+          steps.push(function publishStep(context, next) {
+            self.publishMessage(step.publishMessage, context, ee, (err) => {
+              return next(err, context);
+            });
+          });
+        } else if (step.subscribe) {
+          steps.push(function subscribeStep(context, next) {
+            self.subscribe(step.subscribe, context, ee, (err) => {
+              return next(err, context);
+            });
+          });
+        }
+      });
+
+      A.waterfall(steps, function done(err, context) {
+        if (err) {
+          debug('Scenario error:', err);
+          ee.emit('error', err.message);
+          return callback(err, context);
         }
 
         ee.emit('done');
         return callback(null, context);
-      } catch (err) {
-        debug('Scenario error:', err);
-        ee.emit('error', err.message);
-        return callback(err, context);
-      }
+      });
     };
   }
 
-  async connect() {
-    try {
-      const connectionString = this.config.url || 'amqp://localhost:5672';
-      const connectionOptions = this.config.connectionOptions || {};
+  connect(callback) {
+    const connectionString = this.config.url || 'amqp://localhost:5672';
+    const connectionOptions = this.config.connectionOptions || {};
 
-      debug('Connecting to AMQP:', connectionString);
-      this.connection = await amqp.connect(connectionString, connectionOptions);
+    debug('Connecting to AMQP:', connectionString);
 
-      this.connection.on('error', (err) => {
-        debug('Connection error:', err);
-        this.ee.emit('error', err.message);
+    amqp
+      .connect(connectionString, connectionOptions)
+      .then((connection) => {
+        this.connection = connection;
+
+        this.connection.on('error', (err) => {
+          debug('Connection error:', err);
+          this.ee.emit('error', err.message);
+        });
+
+        this.connection.on('close', () => {
+          debug('Connection closed');
+          this.connection = null;
+          this.channel = null;
+        });
+
+        return this.connection.createChannel();
+      })
+      .then((channel) => {
+        this.channel = channel;
+        debug('Channel created successfully');
+        callback(null);
+      })
+      .catch((err) => {
+        debug('Connection failed:', err);
+        callback(err);
       });
-
-      this.connection.on('close', () => {
-        debug('Connection closed');
-        this.connection = null;
-        this.channel = null;
-      });
-
-      this.channel = await this.connection.createChannel();
-      debug('Channel created successfully');
-    } catch (err) {
-      debug('Connection failed:', err);
-      throw err;
-    }
   }
 
-  async publishMessage(requestParams, context, ee) {
+  publishMessage(requestParams, context, ee, callback) {
     const startedAt = Date.now();
+    const exchange = requestParams.exchange || '';
+    const routingKey = requestParams.routingKey || requestParams.queue || '';
+    const data = requestParams.data || this.generateMessage(requestParams.size || 300);
+    const options = requestParams.options || {};
+    const batch = requestParams.batch || 1;
 
-    try {
-      const exchange = requestParams.exchange || '';
-      const routingKey = requestParams.routingKey || requestParams.queue || '';
-      const data = requestParams.data || this.generateMessage(requestParams.size || 300);
-      const options = requestParams.options || {};
+    const operations = [];
 
-      // Ensure exchange exists if specified
+    // Ensure exchange exists if specified
+    if (exchange) {
+      const exchangeType = requestParams.exchangeType || 'topic';
+      operations.push(this.channel.assertExchange(exchange, exchangeType, { durable: true }));
+    }
+
+    // Ensure queue exists if specified
+    if (requestParams.queue) {
+      operations.push(this.channel.assertQueue(requestParams.queue, { durable: true }));
+
+      // Bind queue to exchange if both are specified
       if (exchange) {
-        const exchangeType = requestParams.exchangeType || 'topic';
-        await this.channel.assertExchange(exchange, exchangeType, { durable: true });
+        operations.push(this.channel.bindQueue(requestParams.queue, exchange, routingKey));
       }
-
-      // Ensure queue exists if specified
-      if (requestParams.queue) {
-        await this.channel.assertQueue(requestParams.queue, { durable: true });
-
-        // Bind queue to exchange if both are specified
-        if (exchange) {
-          await this.channel.bindQueue(requestParams.queue, exchange, routingKey);
-        }
-      }
-
-      // Publish message
-      const messageContent = typeof data === 'string' ? data : JSON.stringify(data);
-      const buffer = Buffer.from(messageContent);
-
-      const batch = requestParams.batch || 1;
-      for (let i = 0; i < batch; i++) {
-        this.channel.publish(exchange, routingKey, buffer, options);
-      }
-
-      const delta = Date.now() - startedAt;
-      ee.emit('counter', 'amqp.messages.sent', batch);
-      ee.emit('histogram', 'amqp.publish.time', delta);
-      ee.emit('response', delta, 0, context._uid);
-
-      debug(`Published ${batch} message(s) to ${exchange || 'default'}/${routingKey}`);
-    } catch (err) {
-      const delta = Date.now() - startedAt;
-      debug('Publish error:', err);
-      ee.emit('error', err.message);
-      ee.emit('response', delta, err.code || 0, context._uid);
-      throw err;
     }
+
+    Promise.all(operations)
+      .then(() => {
+        // Publish message
+        const messageContent = typeof data === 'string' ? data : JSON.stringify(data);
+        const buffer = Buffer.from(messageContent);
+
+        for (let i = 0; i < batch; i++) {
+          this.channel.publish(exchange, routingKey, buffer, options);
+        }
+
+        const delta = Date.now() - startedAt;
+        ee.emit('counter', 'amqp.messages.sent', batch);
+        ee.emit('histogram', 'amqp.publish.time', delta);
+        ee.emit('response', delta, 0, context._uid);
+
+        debug(`Published ${batch} message(s) to ${exchange || 'default'}/${routingKey}`);
+        callback(null);
+      })
+      .catch((err) => {
+        const delta = Date.now() - startedAt;
+        debug('Publish error:', err);
+        ee.emit('error', err.message);
+        ee.emit('response', delta, err.code || 0, context._uid);
+        callback(err);
+      });
   }
 
-  async subscribe(requestParams, context, ee) {
+  subscribe(requestParams, context, ee, callback) {
     const startedAt = Date.now();
+    const queue = requestParams.queue;
+    const timeout = requestParams.timeout || 5000;
+    const messageCount = requestParams.messageCount || 1;
 
-    try {
-      const queue = requestParams.queue;
-      const timeout = requestParams.timeout || 5000;
-      const messageCount = requestParams.messageCount || 1;
-
-      if (!queue) {
-        throw new Error('Queue name is required for subscribe');
-      }
-
-      // Ensure queue exists
-      await this.channel.assertQueue(queue, { durable: true });
-
-      let messagesReceived = 0;
-      const timeoutId = setTimeout(() => {
-        debug(`Subscribe timeout after ${timeout}ms, received ${messagesReceived} messages`);
-      }, timeout);
-
-      await this.channel.consume(
-        queue,
-        (msg) => {
-          if (msg) {
-            messagesReceived++;
-            const delta = Date.now() - startedAt;
-
-            ee.emit('counter', 'amqp.messages.received', 1);
-            ee.emit('histogram', 'amqp.subscribe.time', delta);
-
-            this.channel.ack(msg);
-
-            if (messagesReceived >= messageCount) {
-              clearTimeout(timeoutId);
-              this.channel.cancel(msg.fields.consumerTag);
-            }
-          }
-        },
-        { noAck: false }
-      );
-
-      debug(`Subscribed to queue: ${queue}`);
-    } catch (err) {
-      debug('Subscribe error:', err);
-      ee.emit('error', err.message);
-      throw err;
+    if (!queue) {
+      return callback(new Error('Queue name is required for subscribe'));
     }
+
+    // Ensure queue exists
+    this.channel
+      .assertQueue(queue, { durable: true })
+      .then(() => {
+        let messagesReceived = 0;
+        const timeoutId = setTimeout(() => {
+          debug(`Subscribe timeout after ${timeout}ms, received ${messagesReceived} messages`);
+        }, timeout);
+
+        return this.channel.consume(
+          queue,
+          (msg) => {
+            if (msg) {
+              messagesReceived++;
+              const delta = Date.now() - startedAt;
+
+              ee.emit('counter', 'amqp.messages.received', 1);
+              ee.emit('histogram', 'amqp.subscribe.time', delta);
+
+              this.channel.ack(msg);
+
+              if (messagesReceived >= messageCount) {
+                clearTimeout(timeoutId);
+                this.channel.cancel(msg.fields.consumerTag);
+              }
+            }
+          },
+          { noAck: false }
+        );
+      })
+      .then(() => {
+        debug(`Subscribed to queue: ${queue}`);
+        callback(null);
+      })
+      .catch((err) => {
+        debug('Subscribe error:', err);
+        ee.emit('error', err.message);
+        callback(err);
+      });
   }
 
   generateMessage(size) {
@@ -178,20 +218,52 @@ class AMQPEngine {
     return result;
   }
 
-  async cleanup() {
-    try {
-      if (this.channel) {
-        await this.channel.close();
-        this.channel = null;
-      }
-      if (this.connection) {
-        await this.connection.close();
-        this.connection = null;
-      }
-      debug('Cleanup completed');
-    } catch (err) {
-      debug('Cleanup error:', err);
+  cleanup(callback) {
+    const tasks = [];
+
+    if (this.channel) {
+      tasks.push((cb) => {
+        this.channel
+          .close()
+          .then(() => {
+            this.channel = null;
+            cb(null);
+          })
+          .catch((err) => {
+            debug('Channel close error:', err);
+            this.channel = null;
+            cb(null); // Continue cleanup even on error
+          });
+      });
     }
+
+    if (this.connection) {
+      tasks.push((cb) => {
+        this.connection
+          .close()
+          .then(() => {
+            this.connection = null;
+            cb(null);
+          })
+          .catch((err) => {
+            debug('Connection close error:', err);
+            this.connection = null;
+            cb(null); // Continue cleanup even on error
+          });
+      });
+    }
+
+    if (tasks.length === 0) {
+      debug('Cleanup completed (nothing to clean)');
+      return callback ? callback(null) : null;
+    }
+
+    A.series(tasks, (err) => {
+      debug('Cleanup completed');
+      if (callback) {
+        callback(err);
+      }
+    });
   }
 }
 

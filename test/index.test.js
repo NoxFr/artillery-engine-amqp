@@ -51,82 +51,100 @@ describe('AMQPEngine', () => {
   });
 
   describe('connect', () => {
-    test('should connect to AMQP server', async () => {
-      await engine.connect();
-
-      expect(amqp.connect).toHaveBeenCalledWith('amqp://localhost:5672', {});
-      expect(mockConnection.createChannel).toHaveBeenCalled();
-      expect(engine.connection).toBe(mockConnection);
-      expect(engine.channel).toBe(mockChannel);
+    test('should connect to AMQP server', (done) => {
+      engine.connect((err) => {
+        expect(err).toBeNull();
+        expect(amqp.connect).toHaveBeenCalledWith('amqp://localhost:5672', {});
+        expect(mockConnection.createChannel).toHaveBeenCalled();
+        expect(engine.connection).toBe(mockConnection);
+        expect(engine.channel).toBe(mockChannel);
+        done();
+      });
     });
 
-    test('should use default URL if not provided', async () => {
+    test('should use default URL if not provided', (done) => {
       engine.config = {};
-      await engine.connect();
-
-      expect(amqp.connect).toHaveBeenCalledWith('amqp://localhost:5672', {});
+      engine.connect((err) => {
+        expect(err).toBeNull();
+        expect(amqp.connect).toHaveBeenCalledWith('amqp://localhost:5672', {});
+        done();
+      });
     });
 
-    test('should handle connection errors', async () => {
+    test('should handle connection errors', (done) => {
       const error = new Error('Connection failed');
       amqp.connect.mockRejectedValue(error);
 
-      await expect(engine.connect()).rejects.toThrow('Connection failed');
+      engine.connect((err) => {
+        expect(err).toBeDefined();
+        expect(err.message).toBe('Connection failed');
+        done();
+      });
     });
 
-    test('should handle connection error event', async () => {
-      await engine.connect();
+    test('should handle connection error event', (done) => {
+      engine.connect((err) => {
+        expect(err).toBeNull();
 
-      const errorHandler = mockConnection.on.mock.calls.find((call) => call[0] === 'error')[1];
-      const error = new Error('Connection error');
-      errorHandler(error);
+        const errorHandler = mockConnection.on.mock.calls.find((call) => call[0] === 'error')[1];
+        const error = new Error('Connection error');
+        errorHandler(error);
 
-      expect(mockEE.emit).toHaveBeenCalledWith('error', 'Connection error');
+        expect(mockEE.emit).toHaveBeenCalledWith('error', 'Connection error');
+        done();
+      });
     });
 
-    test('should handle connection close event', async () => {
-      await engine.connect();
+    test('should handle connection close event', (done) => {
+      engine.connect((err) => {
+        expect(err).toBeNull();
 
-      const closeHandler = mockConnection.on.mock.calls.find((call) => call[0] === 'close')[1];
-      closeHandler();
+        const closeHandler = mockConnection.on.mock.calls.find((call) => call[0] === 'close')[1];
+        closeHandler();
 
-      expect(engine.connection).toBeNull();
-      expect(engine.channel).toBeNull();
+        expect(engine.connection).toBeNull();
+        expect(engine.channel).toBeNull();
+        done();
+      });
     });
   });
 
   describe('publishMessage', () => {
-    beforeEach(async () => {
-      await engine.connect();
+    beforeEach((done) => {
+      engine.connect(done);
     });
 
-    test('should publish message to queue', async () => {
+    test('should publish message to queue', (done) => {
       const requestParams = {
         queue: 'test-queue',
         data: 'test message',
       };
 
-      await engine.publishMessage(requestParams, {}, mockEE);
-
-      expect(mockChannel.assertQueue).toHaveBeenCalledWith('test-queue', { durable: true });
-      expect(mockChannel.publish).toHaveBeenCalled();
-      expect(mockEE.emit).toHaveBeenCalledWith('counter', 'amqp.messages.sent', 1);
+      engine.publishMessage(requestParams, { _uid: '123' }, mockEE, (err) => {
+        expect(err).toBeNull();
+        expect(mockChannel.assertQueue).toHaveBeenCalledWith('test-queue', { durable: true });
+        expect(mockChannel.publish).toHaveBeenCalled();
+        expect(mockEE.emit).toHaveBeenCalledWith('counter', 'amqp.messages.sent', 1);
+        done();
+      });
     });
 
-    test('should publish batch of messages', async () => {
+    test('should publish batch of messages', (done) => {
       const requestParams = {
         queue: 'test-queue',
         data: 'test message',
         batch: 5,
       };
 
-      await engine.publishMessage(requestParams, {}, mockEE);
-
-      expect(mockChannel.publish).toHaveBeenCalledTimes(5);
-      expect(mockEE.emit).toHaveBeenCalledWith('counter', 'amqp.messages.sent', 5);
+      engine.publishMessage(requestParams, { _uid: '123' }, mockEE, (err) => {
+        expect(err).toBeNull();
+        expect(mockChannel.publish).toHaveBeenCalledTimes(5);
+        expect(mockEE.emit).toHaveBeenCalledWith('counter', 'amqp.messages.sent', 5);
+        done();
+      });
     });
 
-    test('should publish to exchange with routing key', async () => {
+    test('should publish to exchange with routing key', (done) => {
       const requestParams = {
         exchange: 'test-exchange',
         exchangeType: 'topic',
@@ -134,56 +152,64 @@ describe('AMQPEngine', () => {
         data: { message: 'test' },
       };
 
-      await engine.publishMessage(requestParams, {}, mockEE);
-
-      expect(mockChannel.assertExchange).toHaveBeenCalledWith('test-exchange', 'topic', {
-        durable: true,
+      engine.publishMessage(requestParams, { _uid: '123' }, mockEE, (err) => {
+        expect(err).toBeNull();
+        expect(mockChannel.assertExchange).toHaveBeenCalledWith('test-exchange', 'topic', {
+          durable: true,
+        });
+        expect(mockChannel.publish).toHaveBeenCalledWith(
+          'test-exchange',
+          'test.key',
+          expect.any(Buffer),
+          {}
+        );
+        done();
       });
-      expect(mockChannel.publish).toHaveBeenCalledWith(
-        'test-exchange',
-        'test.key',
-        expect.any(Buffer),
-        {}
-      );
     });
 
-    test('should generate random message if data not provided', async () => {
+    test('should generate random message if data not provided', (done) => {
       const requestParams = {
         queue: 'test-queue',
         size: 100,
       };
 
-      await engine.publishMessage(requestParams, {}, mockEE);
-
-      const publishCall = mockChannel.publish.mock.calls[0];
-      const buffer = publishCall[2];
-      expect(buffer.length).toBe(100);
+      engine.publishMessage(requestParams, { _uid: '123' }, mockEE, (err) => {
+        expect(err).toBeNull();
+        const publishCall = mockChannel.publish.mock.calls[0];
+        const buffer = publishCall[2];
+        expect(buffer.length).toBe(100);
+        done();
+      });
     });
   });
 
   describe('subscribe', () => {
-    beforeEach(async () => {
-      await engine.connect();
+    beforeEach((done) => {
+      engine.connect(done);
     });
 
-    test('should subscribe to queue', async () => {
+    test('should subscribe to queue', (done) => {
       const requestParams = {
         queue: 'test-queue',
         messageCount: 1,
       };
 
-      await engine.subscribe(requestParams, {}, mockEE);
-
-      expect(mockChannel.assertQueue).toHaveBeenCalledWith('test-queue', { durable: true });
-      expect(mockChannel.consume).toHaveBeenCalled();
+      engine.subscribe(requestParams, { _uid: '123' }, mockEE, (err) => {
+        expect(err).toBeNull();
+        expect(mockChannel.assertQueue).toHaveBeenCalledWith('test-queue', { durable: true });
+        expect(mockChannel.consume).toHaveBeenCalled();
+        done();
+      });
     });
 
-    test('should throw error if queue not specified', async () => {
+    test('should throw error if queue not specified', (done) => {
       const requestParams = {};
 
-      await expect(engine.subscribe(requestParams, {}, mockEE)).rejects.toThrow(
-        'Queue name is required for subscribe'
-      );
+      engine.subscribe(requestParams, { _uid: '123' }, mockEE, (err) => {
+        expect(err).toBeDefined();
+        expect(err.message).toBe('Queue name is required for subscribe');
+        done();
+      });
     });
   });
 
@@ -198,28 +224,36 @@ describe('AMQPEngine', () => {
   });
 
   describe('cleanup', () => {
-    test('should close channel and connection', async () => {
-      await engine.connect();
-      await engine.cleanup();
-
-      expect(mockChannel.close).toHaveBeenCalled();
-      expect(mockConnection.close).toHaveBeenCalled();
-      expect(engine.channel).toBeNull();
-      expect(engine.connection).toBeNull();
+    test('should close channel and connection', (done) => {
+      engine.connect((err) => {
+        expect(err).toBeNull();
+        engine.cleanup((err) => {
+          expect(err).toBeNull();
+          expect(mockChannel.close).toHaveBeenCalled();
+          expect(mockConnection.close).toHaveBeenCalled();
+          expect(engine.channel).toBeNull();
+          expect(engine.connection).toBeNull();
+          done();
+        });
+      });
     });
 
-    test('should handle cleanup errors gracefully', async () => {
-      await engine.connect();
-      mockChannel.close.mockRejectedValue(new Error('Close error'));
+    test('should handle cleanup errors gracefully', (done) => {
+      engine.connect((err) => {
+        expect(err).toBeNull();
+        mockChannel.close.mockRejectedValue(new Error('Close error'));
 
-      await engine.cleanup();
-
-      expect(mockChannel.close).toHaveBeenCalled();
+        engine.cleanup((_err) => {
+          // Should complete despite error
+          expect(mockChannel.close).toHaveBeenCalled();
+          done();
+        });
+      });
     });
   });
 
   describe('createScenario', () => {
-    test('should create and execute scenario', async () => {
+    test('should create and execute scenario', (done) => {
       const scenarioSpec = {
         flow: [
           {
@@ -231,18 +265,19 @@ describe('AMQPEngine', () => {
         ],
       };
 
-      const scenario = await engine.createScenario(scenarioSpec, mockEE);
-      const callback = jest.fn();
+      const scenario = engine.createScenario(scenarioSpec, mockEE);
       const context = { _uid: '123' };
 
-      await scenario(context, callback);
-
-      expect(mockEE.emit).toHaveBeenCalledWith('started');
-      expect(mockEE.emit).toHaveBeenCalledWith('done');
-      expect(callback).toHaveBeenCalledWith(null, context);
+      scenario(context, (err, resultContext) => {
+        expect(err).toBeNull();
+        expect(mockEE.emit).toHaveBeenCalledWith('started');
+        expect(mockEE.emit).toHaveBeenCalledWith('done');
+        expect(resultContext).toBe(context);
+        done();
+      });
     });
 
-    test('should create and execute scenario with subscribe', async () => {
+    test('should create and execute scenario with subscribe', (done) => {
       const scenarioSpec = {
         flow: [
           {
@@ -254,20 +289,21 @@ describe('AMQPEngine', () => {
         ],
       };
 
-      const scenario = await engine.createScenario(scenarioSpec, mockEE);
-      const callback = jest.fn();
+      const scenario = engine.createScenario(scenarioSpec, mockEE);
       const context = { _uid: '123' };
 
-      await scenario(context, callback);
-
-      expect(mockEE.emit).toHaveBeenCalledWith('started');
-      expect(mockChannel.assertQueue).toHaveBeenCalledWith('test-queue', { durable: true });
-      expect(mockChannel.consume).toHaveBeenCalled();
-      expect(mockEE.emit).toHaveBeenCalledWith('done');
-      expect(callback).toHaveBeenCalledWith(null, context);
+      scenario(context, (err, resultContext) => {
+        expect(err).toBeNull();
+        expect(mockEE.emit).toHaveBeenCalledWith('started');
+        expect(mockChannel.assertQueue).toHaveBeenCalledWith('test-queue', { durable: true });
+        expect(mockChannel.consume).toHaveBeenCalled();
+        expect(mockEE.emit).toHaveBeenCalledWith('done');
+        expect(resultContext).toBe(context);
+        done();
+      });
     });
 
-    test('should handle errors in scenario', async () => {
+    test('should handle errors in scenario', (done) => {
       const scenarioSpec = {
         flow: [
           {
@@ -282,14 +318,15 @@ describe('AMQPEngine', () => {
       const error = new Error('Test error');
       mockChannel.assertQueue.mockRejectedValue(error);
 
-      const scenario = await engine.createScenario(scenarioSpec, mockEE);
-      const callback = jest.fn();
+      const scenario = engine.createScenario(scenarioSpec, mockEE);
       const context = { _uid: '123' };
 
-      await scenario(context, callback);
-
-      expect(mockEE.emit).toHaveBeenCalledWith('error', 'Test error');
-      expect(callback).toHaveBeenCalledWith(error, context);
+      scenario(context, (err, resultContext) => {
+        expect(err).toBeDefined();
+        expect(mockEE.emit).toHaveBeenCalledWith('error', 'Test error');
+        expect(resultContext).toBe(context);
+        done();
+      });
     });
   });
 });
