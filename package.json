@@ -23,6 +23,9 @@
     "type": "git",
     "url": "git+https://github.com/NoxFr/artillery-engine-amqp.git"
   },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
   "bugs": {
     "url": "https://github.com/NoxFr/artillery-engine-amqp/issues"
   },
