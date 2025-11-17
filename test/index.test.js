@@ -116,11 +116,9 @@ describe('AMQPEngine', () => {
 
       await engine.publishMessage(requestParams, {}, mockEE);
 
-      expect(mockChannel.assertExchange).toHaveBeenCalledWith(
-        'test-exchange',
-        'topic',
-        { durable: true }
-      );
+      expect(mockChannel.assertExchange).toHaveBeenCalledWith('test-exchange', 'topic', {
+        durable: true,
+      });
       expect(mockChannel.publish).toHaveBeenCalledWith(
         'test-exchange',
         'test.key',

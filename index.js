@@ -140,26 +140,29 @@ class AMQPEngine {
         debug(`Subscribe timeout after ${timeout}ms, received ${messagesReceived} messages`);
       }, timeout);
 
-      await this.channel.consume(queue, (msg) => {
-        if (msg) {
-          messagesReceived++;
-          const delta = Date.now() - startedAt;
+      await this.channel.consume(
+        queue,
+        (msg) => {
+          if (msg) {
+            messagesReceived++;
+            const delta = Date.now() - startedAt;
 
-          ee.emit('counter', 'amqp.messages.received', 1);
-          ee.emit('histogram', 'amqp.subscribe.time', delta);
+            ee.emit('counter', 'amqp.messages.received', 1);
+            ee.emit('histogram', 'amqp.subscribe.time', delta);
 
-          this.channel.ack(msg);
+            this.channel.ack(msg);
 
-          if (messagesReceived >= messageCount) {
-            clearTimeout(timeoutId);
-            this.channel.cancel(msg.fields.consumerTag);
+            if (messagesReceived >= messageCount) {
+              clearTimeout(timeoutId);
+              this.channel.cancel(msg.fields.consumerTag);
+            }
           }
-        }
-      }, { noAck: false });
+        },
+        { noAck: false }
+      );
 
       debug(`Subscribed to queue: ${queue}`);
     } catch (err) {
-      const delta = Date.now() - startedAt;
       debug('Subscribe error:', err);
       ee.emit('error', err.message);
       throw err;
