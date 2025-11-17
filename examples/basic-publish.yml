@@ -1,0 +1,29 @@
+config:
+  target: "amqp://localhost:5672"
+  phases:
+    - duration: 30
+      arrivalRate: 5
+      name: "Warm up"
+    - duration: 60
+      arrivalRate: 10
+      name: "Sustained load"
+  engines:
+    amqp:
+      url: "amqp://localhost:5672"
+      connectionOptions:
+        heartbeat: 60
+
+scenarios:
+  - name: "Publish messages to queue"
+    engine: amqp
+    flow:
+      - publishMessage:
+          queue: "test-queue"
+          data:
+            message: "Load test message"
+            timestamp: "{{ $timestamp }}"
+            id: "{{ $uuid }}"
+          batch: 1
+          options:
+            persistent: true
+            contentType: "application/json"

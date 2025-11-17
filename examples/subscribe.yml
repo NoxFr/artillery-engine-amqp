@@ -1,0 +1,17 @@
+config:
+  target: "amqp://localhost:5672"
+  phases:
+    - duration: 30
+      arrivalRate: 2
+  engines:
+    amqp:
+      url: "amqp://localhost:5672"
+
+scenarios:
+  - name: "Subscribe to queue and consume messages"
+    engine: amqp
+    flow:
+      - subscribe:
+          queue: "test-queue"
+          messageCount: 10
+          timeout: 15000

@@ -1,0 +1,69 @@
+config:
+  target: "amqp://localhost:5672"
+  phases:
+    - duration: 10
+      arrivalRate: 2
+      name: "Warm up phase"
+    - duration: 30
+      arrivalRate: 5
+      rampTo: 10
+      name: "Ramp up load"
+    - duration: 30
+      arrivalRate: 10
+      name: "Sustained load"
+    - duration: 10
+      arrivalRate: 10
+      rampTo: 2
+      name: "Ramp down"
+
+  engines:
+    amqp:
+      url: "amqp://localhost:5672"
+      connectionOptions:
+        heartbeat: 60
+        locale: "en_US"
+
+scenarios:
+  - name: "Complete publish/subscribe scenario"
+    engine: amqp
+    weight: 70
+    flow:
+      # Publish to a direct queue
+      - publishMessage:
+          queue: "orders-queue"
+          data:
+            orderId: "{{ $uuid }}"
+            amount: "{{ $randomNumber(10, 1000) }}"
+            currency: "EUR"
+            status: "pending"
+            createdAt: "{{ $timestamp }}"
+          options:
+            persistent: true
+            contentType: "application/json"
+          batch: 1
+
+      # Publish to topic exchange
+      - publishMessage:
+          exchange: "notifications"
+          exchangeType: "topic"
+          routingKey: "order.created"
+          queue: "notifications-queue"
+          data:
+            type: "order.created"
+            orderId: "{{ $uuid }}"
+            timestamp: "{{ $timestamp }}"
+          options:
+            persistent: true
+            contentType: "application/json"
+            headers:
+              source: "order-service"
+              priority: "high"
+
+  - name: "Message consumer scenario"
+    engine: amqp
+    weight: 30
+    flow:
+      - subscribe:
+          queue: "orders-queue"
+          messageCount: 5
+          timeout: 10000

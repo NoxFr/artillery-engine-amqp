@@ -1,0 +1,37 @@
+{
+  "name": "artillery-engine-amqp",
+  "version": "1.0.0",
+  "description": "Artillery.io load testing engine for AMQP",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.js\""
+  },
+  "keywords": [
+    "artillery",
+    "amqp",
+    "rabbitmq",
+    "load-testing",
+    "performance"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "artillery": "^2.0.26"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.9",
+    "debug": "^4.4.3"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "jest": "^30.2.0",
+    "prettier": "^3.6.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

@@ -1,0 +1,27 @@
+config:
+  target: "amqp://localhost:5672"
+  phases:
+    - duration: 60
+      arrivalRate: 20
+  engines:
+    amqp:
+      url: "amqp://localhost:5672"
+
+scenarios:
+  - name: "Publish to topic exchange"
+    engine: amqp
+    flow:
+      - publishMessage:
+          exchange: "events"
+          exchangeType: "topic"
+          routingKey: "user.created"
+          queue: "user-events-queue"
+          data:
+            event: "user.created"
+            userId: "{{ $uuid }}"
+            timestamp: "{{ $timestamp }}"
+          options:
+            persistent: true
+            contentType: "application/json"
+            headers:
+              source: "artillery-load-test"
