@@ -71,7 +71,7 @@ class AMQPEngine {
   }
 
   connect(callback) {
-    const connectionString = this.config.url || 'amqp://localhost:5672';
+    const connectionString = this.script.config.target || 'amqp://localhost:5672';
     const connectionOptions = this.config.connectionOptions || {};
 
     debug('Connecting to AMQP:', connectionString);

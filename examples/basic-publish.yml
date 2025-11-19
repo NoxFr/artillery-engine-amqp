@@ -9,7 +9,6 @@ config:
       name: "Sustained load"
   engines:
     amqp:
-      url: "amqp://localhost:5672"
       connectionOptions:
         heartbeat: 60
 

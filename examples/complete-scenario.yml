@@ -18,7 +18,6 @@ config:
 
   engines:
     amqp:
-      url: "amqp://localhost:5672"
       connectionOptions:
         heartbeat: 60
         locale: "en_US"

@@ -4,8 +4,7 @@ config:
     - duration: 60
       arrivalRate: 20
   engines:
-    amqp:
-      url: "amqp://localhost:5672"
+    amqp: {}
 
 scenarios:
   - name: "Publish to topic exchange"

@@ -4,8 +4,7 @@ config:
     - duration: 30
       arrivalRate: 2
   engines:
-    amqp:
-      url: "amqp://localhost:5672"
+    amqp: {}
 
 scenarios:
   - name: "Subscribe to queue and consume messages"

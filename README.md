@@ -26,7 +26,6 @@ config:
       arrivalRate: 10
   engines:
     amqp:
-      url: "amqp://localhost:5672"
       connectionOptions:
         heartbeat: 60
 
@@ -75,7 +74,7 @@ scenarios:
 
 #### Engine Configuration
 
-- `url`: AMQP connection URL (default: `amqp://localhost:5672`)
+- `target`: AMQP connection URL (defined at config level, default: `amqp://localhost:5672`)
 - `connectionOptions`: Connection options passed to amqplib
 
 #### publishMessage Options
