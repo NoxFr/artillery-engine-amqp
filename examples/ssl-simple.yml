@@ -1,0 +1,25 @@
+config:
+  target: "amqps://user:password@rabbitmq.example.com:5671"
+  phases:
+    - duration: 30
+      arrivalRate: 5
+      name: "SSL Load Test"
+  engines:
+    amqp:
+      connectionOptions:
+        heartbeat: 60
+      # Simple SSL configuration - uses system's trusted CA certificates
+      # For self-signed certificates in development, you can disable verification:
+      ssl:
+        rejectUnauthorized: false
+
+scenarios:
+  - name: "Publish messages over SSL"
+    engine: amqp
+    flow:
+      - publishMessage:
+          queue: "secure-queue"
+          data:
+            message: "Secure message"
+            timestamp: "{{ $timestamp }}"
+          batch: 1

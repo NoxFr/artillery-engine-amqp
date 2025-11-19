@@ -1,0 +1,39 @@
+config:
+  target: "amqps://user:password@rabbitmq.example.com:5671"
+  phases:
+    - duration: 30
+      arrivalRate: 5
+      name: "SSL Load Test"
+  engines:
+    amqp:
+      connectionOptions:
+        heartbeat: 60
+      ssl:
+        # Path to client certificate (optional)
+        cert: "/path/to/client-cert.pem"
+        # Path to client key (optional)
+        key: "/path/to/client-key.pem"
+        # Path to CA certificate(s) - can be a single file or array of files
+        ca: "/path/to/ca-cert.pem"
+        # ca:
+        #   - "/path/to/ca-cert1.pem"
+        #   - "/path/to/ca-cert2.pem"
+        # Passphrase for encrypted private key (optional)
+        passphrase: "your-passphrase"
+        # Whether to reject unauthorized certificates (default: true)
+        # Set to false for self-signed certificates in development
+        rejectUnauthorized: true
+
+scenarios:
+  - name: "Publish messages over SSL"
+    engine: amqp
+    flow:
+      - publishMessage:
+          queue: "secure-queue"
+          data:
+            message: "Secure message"
+            timestamp: "{{ $timestamp }}"
+          batch: 1
+          options:
+            persistent: true
+            contentType: "application/json"

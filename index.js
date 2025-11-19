@@ -72,7 +72,33 @@ class AMQPEngine {
 
   connect(callback) {
     const connectionString = this.script.config.target || 'amqp://localhost:5672';
-    const connectionOptions = this.config.connectionOptions || {};
+    let connectionOptions = this.config.connectionOptions || {};
+
+    // Handle SSL/TLS configuration
+    if (this.config.ssl) {
+      const fs = require('fs');
+      const sslConfig = {};
+
+      // Load certificate files if paths are provided
+      if (this.config.ssl.cert) {
+        sslConfig.cert = fs.readFileSync(this.config.ssl.cert);
+      }
+      if (this.config.ssl.key) {
+        sslConfig.key = fs.readFileSync(this.config.ssl.key);
+      }
+      if (this.config.ssl.ca) {
+        const caFiles = Array.isArray(this.config.ssl.ca) ? this.config.ssl.ca : [this.config.ssl.ca];
+        sslConfig.ca = caFiles.map(caFile => fs.readFileSync(caFile));
+      }
+      if (this.config.ssl.passphrase) {
+        sslConfig.passphrase = this.config.ssl.passphrase;
+      }
+      if (typeof this.config.ssl.rejectUnauthorized !== 'undefined') {
+        sslConfig.rejectUnauthorized = this.config.ssl.rejectUnauthorized;
+      }
+
+      connectionOptions = { ...connectionOptions, ...sslConfig };
+    }
 
     // Obfuscate password in logs
     const obfuscatedConnectionString = connectionString.replace(
@@ -80,9 +106,17 @@ class AMQPEngine {
       '$1$2:****@'
     );
 
+    // Obfuscate sensitive SSL data in logs
+    const safeConnectionOptions = { ...connectionOptions };
+    if (safeConnectionOptions.cert) safeConnectionOptions.cert = '[REDACTED]';
+    if (safeConnectionOptions.key) safeConnectionOptions.key = '[REDACTED]';
+    if (safeConnectionOptions.ca) safeConnectionOptions.ca = '[REDACTED]';
+    if (safeConnectionOptions.passphrase) safeConnectionOptions.passphrase = '[REDACTED]';
+
     debug('=== AMQP Connection Details ===');
     debug('Connection string:', obfuscatedConnectionString);
-    debug('Connection options:', JSON.stringify(connectionOptions, null, 2));
+    debug('Connection options:', JSON.stringify(safeConnectionOptions, null, 2));
+    debug('SSL enabled:', !!this.config.ssl);
     debug('================================');
 
     amqp

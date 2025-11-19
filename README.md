@@ -70,12 +70,72 @@ scenarios:
           timeout: 10000
 ```
 
+### SSL/TLS Connections
+
+#### Basic SSL Connection
+
+For simple SSL connections using system's trusted CA certificates:
+
+```yaml
+config:
+  target: "amqps://user:password@rabbitmq.example.com:5671"
+  engines:
+    amqp:
+      connectionOptions:
+        heartbeat: 60
+      ssl:
+        rejectUnauthorized: true
+```
+
+#### SSL with Client Certificates
+
+For mutual TLS authentication:
+
+```yaml
+config:
+  target: "amqps://user:password@rabbitmq.example.com:5671"
+  engines:
+    amqp:
+      connectionOptions:
+        heartbeat: 60
+      ssl:
+        cert: "/path/to/client-cert.pem"
+        key: "/path/to/client-key.pem"
+        ca: "/path/to/ca-cert.pem"
+        passphrase: "your-key-passphrase"
+        rejectUnauthorized: true
+```
+
+#### Self-Signed Certificates (Development)
+
+For development with self-signed certificates:
+
+```yaml
+config:
+  target: "amqps://user:password@localhost:5671"
+  engines:
+    amqp:
+      ssl:
+        rejectUnauthorized: false
+```
+
+**Note:** SSL certificate data and passphrases are automatically redacted from debug logs for security.
+
+See [examples/ssl-connection.yml](examples/ssl-connection.yml) and [examples/ssl-simple.yml](examples/ssl-simple.yml) for complete examples.
+
 ### Configuration Options
 
 #### Engine Configuration
 
 - `target`: AMQP connection URL (defined at config level, default: `amqp://localhost:5672`)
-- `connectionOptions`: Connection options passed to amqplib
+  - For SSL/TLS connections, use `amqps://` protocol (e.g., `amqps://user:pass@host:5671`)
+- `connectionOptions`: Connection options passed to amqplib (e.g., heartbeat)
+- `ssl`: SSL/TLS configuration (optional)
+  - `cert`: Path to client certificate file (optional)
+  - `key`: Path to client private key file (optional)
+  - `ca`: Path to CA certificate file(s) - can be a string or array of strings (optional)
+  - `passphrase`: Passphrase for encrypted private key (optional)
+  - `rejectUnauthorized`: Whether to reject unauthorized certificates (default: `true`)
 
 #### publishMessage Options
 
