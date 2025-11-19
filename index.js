@@ -74,7 +74,16 @@ class AMQPEngine {
     const connectionString = this.script.config.target || 'amqp://localhost:5672';
     const connectionOptions = this.config.connectionOptions || {};
 
-    debug('Connecting to AMQP:', connectionString);
+    // Obfuscate password in logs
+    const obfuscatedConnectionString = connectionString.replace(
+      /(:\/\/)([^:]+):([^@]+)@/,
+      '$1$2:****@'
+    );
+
+    debug('=== AMQP Connection Details ===');
+    debug('Connection string:', obfuscatedConnectionString);
+    debug('Connection options:', JSON.stringify(connectionOptions, null, 2));
+    debug('================================');
 
     amqp
       .connect(connectionString, connectionOptions)
