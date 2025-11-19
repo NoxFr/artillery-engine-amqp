@@ -10,7 +10,7 @@ config:
     # Simple SSL configuration - uses system's trusted CA certificates
     # For self-signed certificates in development, you can disable verification:
     ssl:
-        rejectUnauthorized: false
+      rejectUnauthorized: false
 
 scenarios:
   - name: "Publish messages over SSL"
