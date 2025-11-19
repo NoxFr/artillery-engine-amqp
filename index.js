@@ -79,6 +79,20 @@ class AMQPEngine {
       const fs = require('fs');
       const sslConfig = {};
 
+      debug('SSL configuration detected');
+      if (this.config.ssl.cert) {
+        debug('SSL cert path:', this.config.ssl.cert);
+      }
+      if (this.config.ssl.key) {
+        debug('SSL key path:', this.config.ssl.key);
+      }
+      if (this.config.ssl.ca) {
+        const caFiles = Array.isArray(this.config.ssl.ca)
+          ? this.config.ssl.ca
+          : [this.config.ssl.ca];
+        debug('SSL CA path(s):', caFiles);
+      }
+
       // Load certificate files if paths are provided
       if (this.config.ssl.cert) {
         sslConfig.cert = fs.readFileSync(this.config.ssl.cert);
