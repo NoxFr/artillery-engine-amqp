@@ -1,6 +1,6 @@
 {
   "name": "artillery-engine-amqp",
-  "version": "1.0.0-alpha.6",
+  "version": "1.0.0-alpha.7",
   "description": "Artillery.io load testing engine for AMQP",
   "main": "index.js",
   "scripts": {
