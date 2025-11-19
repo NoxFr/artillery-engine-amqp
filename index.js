@@ -87,8 +87,10 @@ class AMQPEngine {
         sslConfig.key = fs.readFileSync(this.config.ssl.key);
       }
       if (this.config.ssl.ca) {
-        const caFiles = Array.isArray(this.config.ssl.ca) ? this.config.ssl.ca : [this.config.ssl.ca];
-        sslConfig.ca = caFiles.map(caFile => fs.readFileSync(caFile));
+        const caFiles = Array.isArray(this.config.ssl.ca)
+          ? this.config.ssl.ca
+          : [this.config.ssl.ca];
+        sslConfig.ca = caFiles.map((caFile) => fs.readFileSync(caFile));
       }
       if (this.config.ssl.passphrase) {
         sslConfig.passphrase = this.config.ssl.passphrase;

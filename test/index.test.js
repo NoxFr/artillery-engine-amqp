@@ -114,6 +114,103 @@ describe('AMQPEngine', () => {
         done();
       });
     });
+
+    test('should connect with SSL configuration using cert and key', (done) => {
+      const fs = require('fs');
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(Buffer.from('fake-cert-data'));
+
+      mockScript.config.amqp = {
+        ssl: {
+          cert: '/path/to/cert.pem',
+          key: '/path/to/key.pem',
+          ca: '/path/to/ca.pem',
+          passphrase: 'test-passphrase',
+          rejectUnauthorized: true,
+        },
+      };
+
+      engine = new AMQPEngine(mockScript, mockEE, { template: (v) => v });
+
+      engine.connect((err) => {
+        expect(err).toBeNull();
+        expect(fs.readFileSync).toHaveBeenCalledWith('/path/to/cert.pem');
+        expect(fs.readFileSync).toHaveBeenCalledWith('/path/to/key.pem');
+        expect(fs.readFileSync).toHaveBeenCalledWith('/path/to/ca.pem');
+        expect(amqp.connect).toHaveBeenCalledWith(
+          'amqp://localhost:5672',
+          expect.objectContaining({
+            cert: expect.any(Buffer),
+            key: expect.any(Buffer),
+            ca: expect.arrayContaining([expect.any(Buffer)]),
+            passphrase: 'test-passphrase',
+            rejectUnauthorized: true,
+          })
+        );
+
+        fs.readFileSync.mockRestore();
+        done();
+      });
+    });
+
+    test('should handle SSL with multiple CA certificates', (done) => {
+      const fs = require('fs');
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(Buffer.from('fake-ca-data'));
+
+      mockScript.config.amqp = {
+        ssl: {
+          ca: ['/path/to/ca1.pem', '/path/to/ca2.pem'],
+        },
+      };
+
+      engine = new AMQPEngine(mockScript, mockEE, { template: (v) => v });
+
+      engine.connect((err) => {
+        expect(err).toBeNull();
+        expect(fs.readFileSync).toHaveBeenCalledWith('/path/to/ca1.pem');
+        expect(fs.readFileSync).toHaveBeenCalledWith('/path/to/ca2.pem');
+        expect(amqp.connect).toHaveBeenCalledWith(
+          'amqp://localhost:5672',
+          expect.objectContaining({
+            ca: expect.arrayContaining([expect.any(Buffer), expect.any(Buffer)]),
+          })
+        );
+
+        fs.readFileSync.mockRestore();
+        done();
+      });
+    });
+
+    test('should handle SSL with rejectUnauthorized false', (done) => {
+      mockScript.config.amqp = {
+        ssl: {
+          rejectUnauthorized: false,
+        },
+      };
+
+      engine = new AMQPEngine(mockScript, mockEE, { template: (v) => v });
+
+      engine.connect((err) => {
+        expect(err).toBeNull();
+        expect(amqp.connect).toHaveBeenCalledWith(
+          'amqp://localhost:5672',
+          expect.objectContaining({
+            rejectUnauthorized: false,
+          })
+        );
+        done();
+      });
+    });
+
+    test('should connect without SSL when ssl config is not provided', (done) => {
+      mockScript.config.amqp = {};
+      engine = new AMQPEngine(mockScript, mockEE, { template: (v) => v });
+
+      engine.connect((err) => {
+        expect(err).toBeNull();
+        expect(amqp.connect).toHaveBeenCalledWith('amqp://localhost:5672', {});
+        done();
+      });
+    });
   });
 
   describe('publishMessage', () => {
