@@ -3,8 +3,7 @@ config:
   phases:
     - duration: 60
       arrivalRate: 20
-  engines:
-    amqp: {}
+  amqp: {}
 
 scenarios:
   - name: "Publish to topic exchange"

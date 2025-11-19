@@ -16,11 +16,10 @@ config:
       rampTo: 2
       name: "Ramp down"
 
-  engines:
-    amqp:
-      connectionOptions:
-        heartbeat: 60
-        locale: "en_US"
+  amqp:
+    connectionOptions:
+      heartbeat: 60
+      locale: "en_US"
 
 scenarios:
   - name: "Complete publish/subscribe scenario"

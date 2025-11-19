@@ -7,10 +7,9 @@ config:
     - duration: 60
       arrivalRate: 10
       name: "Sustained load"
-  engines:
-    amqp:
-      connectionOptions:
-        heartbeat: 60
+  amqp:
+    connectionOptions:
+      heartbeat: 60
 
 scenarios:
   - name: "Publish messages to queue"

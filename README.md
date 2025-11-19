@@ -24,10 +24,9 @@ config:
   phases:
     - duration: 60
       arrivalRate: 10
-  engines:
-    amqp:
-      connectionOptions:
-        heartbeat: 60
+  amqp:
+    connectionOptions:
+      heartbeat: 60
 
 scenarios:
   - name: "Publish messages to queue"
@@ -79,12 +78,11 @@ For simple SSL connections using system's trusted CA certificates:
 ```yaml
 config:
   target: "amqps://user:password@rabbitmq.example.com:5671"
-  engines:
-    amqp:
-      connectionOptions:
-        heartbeat: 60
-      ssl:
-        rejectUnauthorized: true
+  amqp:
+    connectionOptions:
+      heartbeat: 60
+    ssl:
+      rejectUnauthorized: true
 ```
 
 #### SSL with Client Certificates
@@ -94,16 +92,15 @@ For mutual TLS authentication:
 ```yaml
 config:
   target: "amqps://user:password@rabbitmq.example.com:5671"
-  engines:
-    amqp:
-      connectionOptions:
-        heartbeat: 60
-      ssl:
-        cert: "/path/to/client-cert.pem"
-        key: "/path/to/client-key.pem"
-        ca: "/path/to/ca-cert.pem"
-        passphrase: "your-key-passphrase"
-        rejectUnauthorized: true
+  amqp:
+    connectionOptions:
+      heartbeat: 60
+    ssl:
+      cert: "/path/to/client-cert.pem"
+      key: "/path/to/client-key.pem"
+      ca: "/path/to/ca-cert.pem"
+      passphrase: "your-key-passphrase"
+      rejectUnauthorized: true
 ```
 
 #### Self-Signed Certificates (Development)
@@ -113,10 +110,9 @@ For development with self-signed certificates:
 ```yaml
 config:
   target: "amqps://user:password@localhost:5671"
-  engines:
-    amqp:
-      ssl:
-        rejectUnauthorized: false
+  amqp:
+    ssl:
+      rejectUnauthorized: false
 ```
 
 **Note:** SSL certificate data and passphrases are automatically redacted from debug logs for security.

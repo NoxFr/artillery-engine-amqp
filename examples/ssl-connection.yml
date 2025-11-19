@@ -4,11 +4,10 @@ config:
     - duration: 30
       arrivalRate: 5
       name: "SSL Load Test"
-  engines:
-    amqp:
-      connectionOptions:
-        heartbeat: 60
-      ssl:
+  amqp:
+    connectionOptions:
+      heartbeat: 60
+    ssl:
         # Path to client certificate (optional)
         cert: "/path/to/client-cert.pem"
         # Path to client key (optional)
